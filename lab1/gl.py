@@ -84,3 +84,11 @@ class Renderer:
                     y -= 1
                 
                 limit += 1
+
+    # función para dibujar polígonos
+    def glPolygon(self, points, color = None):
+        n = len(points)
+        for i in range(n):
+            p0 = points[i]
+            p1 = points[(i + 1) % n]
+            self.glLine(p0, p1, color or self.currColor)
