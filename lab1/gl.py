@@ -1,5 +1,5 @@
 class Renderer:
-    def __init__ (self, screen):
+    def __init__(self, screen):
         self.screen = screen
         _, _, self.width, self.height = screen.get_rect()
         self.glColor(1, 1, 1)
@@ -13,7 +13,7 @@ class Renderer:
         g = min(1, max(0, g))
         b = min(1, max(0, b))
 
-        self.clearColor = [r, g, b]
+        self.clearColor = [int(r * 255), int(g * 255), int(b * 255)]
 
     # función para definir el color actual.
     def glColor(self, r, g, b): 
@@ -21,25 +21,25 @@ class Renderer:
         g = min(1, max(0, g))
         b = min(1, max(0, b))
 
-        self.currColor = [r, g, b]
+        self.currColor = [int(r * 255), int(g * 255), int(b * 255)]
+
 
     # se llena el frame buffer con el color de fondo.
     def glClear(self):
-        color = [int(i*255) for i in self.clearColor]
-        self.screen.fill(color)
+        self.screen.fill(self.clearColor)
 
-        self.frameBuffer = [[self.clearColor for i in range(self.height)]
-                         for x in range(self.width)] 
-
+        self.frameBuffer = [
+            [self.clearColor[:] for _ in range(self.height)]
+            for _ in range(self.width)
+        ]
     # función para dibujar un punto en pantalla.
-    def glPoint(self, x, y, color = None):
+    def glPoint(self, x, y, color=None):
         x = round(x)
         y = round(y)
 
-        if (0 <= x < self.width) and (0 <= y < self.height):
-            color = [int(i*255) for i in (color or self.currColor)]
+        if 0 <= x < self.width and 0 <= y < self.height:
+            color = color or self.currColor
             self.screen.set_at((x, self.height - 1 - y), color)
-
             self.frameBuffer[x][y] = color
 
     # función para dibujar líneas con el algoritmo de Bresenham.
