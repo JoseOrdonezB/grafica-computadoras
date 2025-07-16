@@ -1,25 +1,20 @@
 import numpy as np
 
 def vertexShader(vertex, **kwargs):
-    # Se lleva a cabo por vertice
-
-	# Recibimos las matrices
     modelMatrix = kwargs["modelMatrix"]
 
-	# Agregamos un componente W al vertice
-    vt = [vertex[0],
-          vertex[1],
-          vertex[2],
-          1]
+    vt = np.array([[vertex[0]], [vertex[1]], [vertex[2]], [1]])
 
-	# Transformamos el vertices por todas las matrices en el orden correcto
     vt = modelMatrix @ vt
 
-    vt = vt.tolist()[0]
+    x_ndc = vt[0, 0] / vt[3, 0]
+    y_ndc = vt[1, 0] / vt[3, 0]
+    z_ndc = vt[2, 0] / vt[3, 0]
 
-	# Dividimos x,y,z por w para regresar el vertices a un tamaño de 3
-    vt = [vt[0] / vt[3],
-          vt[1] / vt[3],
-          vt[2] / vt[3]]
+    width = 512
+    height = 512
 
-    return vt
+    x_screen = int((x_ndc + 1) * (width / 2))
+    y_screen = int((y_ndc + 1) * (height / 2))
+
+    return x_screen, y_screen, z_ndc
