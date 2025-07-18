@@ -3,6 +3,7 @@ LINES = 1
 TRIANGLES = 2
 
 class Renderer(object):
+	# Inicializa el renderer con la pantalla, colores por defecto, tipo de primitiva y otros atributos
 	def __init__(self, screen):
 		self.screen = screen
 		_, _, self.width, self.height = self.screen.get_rect()
@@ -19,27 +20,28 @@ class Renderer(object):
 		self.activeModelMatrix = None
 		self.activeVertexShader = None
 
-
+	# Establece el color de fondo de la pantalla (valores entre 0 y 1)
 	def glClearColor(self, r, g, b):
 		r = min(1, max(0,r))
 		g = min(1, max(0,g))
 		b = min(1, max(0,b))
 		self.clearColor = [r,g,b]
 
-
+	# Establece el color actual para dibujar primitivas (valores entre 0 y 1)
 	def glColor(self, r, g, b):
 		r = min(1, max(0,r))
 		g = min(1, max(0,g))
 		b = min(1, max(0,b))
 		self.currColor = [r,g,b]
 
+	# Limpia la pantalla con el color de fondo y resetea el framebuffer
 	def glClear(self):
 		color = [int(i * 255) for i in self.clearColor]
 		self.screen.fill(color)
 		self.frameBuffer = [[color for y in range(self.height)]
 							for x in range(self.width)]
 
-
+	# Dibuja un punto en la posición (x, y) usando el color actual o uno específico
 	def glPoint(self, x, y, color = None):
 		x = round(x)
 		y = round(y)
@@ -48,7 +50,7 @@ class Renderer(object):
 			self.screen.set_at((x,self.height - 1 - y ), color)
 			self.frameBuffer[x][y] = color
 
-
+	# Dibuja una línea entre dos puntos usando un algoritmo similar a Bresenham
 	def glLine(self, p0, p1, color = None):
 		x0 = p0[0]
 		x1 = p1[0]
@@ -89,12 +91,13 @@ class Renderer(object):
 				y += 1 if y0 < y1 else -1
 				limit += 1
 
-
+	# Dibuja un triángulo relleno usando líneas horizontales
 	def glTriangle(self, A, B, C):
 		if A[1] < B[1]: A, B = B, A
 		if A[1] < C[1]: A, C = C, A
 		if B[1] < C[1]: B, C = C, B
 
+		# Dibuja un triángulo con base plana
 		def flatBottom(vA, vB, vC):
 			try:
 				mBA = (vB[0] - vA[0]) / (vB[1] - vA[1])
@@ -112,6 +115,7 @@ class Renderer(object):
 				x0 += mBA
 				x1 += mCA
 
+		# Dibuja un triángulo con vértice superior plano
 		def flatTop(vA, vB, vC):
 			try:
 				mCA = (vC[0] - vA[0]) / (vC[1] - vA[1])
@@ -129,6 +133,7 @@ class Renderer(object):
 				x0 -= mCA
 				x1 -= mCB
 
+		# Dibuja el triángulo completo en dos mitades
 		if B[1] == C[1]:
 			flatBottom(A,B,C)
 		elif A[1] == B[1]:
@@ -138,7 +143,7 @@ class Renderer(object):
 			flatBottom(A, B, D)
 			flatTop(B, D, C)
 
-
+	# Renderiza todos los modelos de la escena transformando sus vértices y dibujándolos
 	def glRender(self):
 		for model in self.models:
 			self.activeModelMatrix = model.GetModelMatrix()
@@ -160,7 +165,7 @@ class Renderer(object):
 
 			self.glDrawPrimitives(vertexBuffer, 3, model.colors)
 
-
+	# Dibuja las primitivas según el tipo actual: puntos, líneas o triángulos
 	def glDrawPrimitives(self, buffer, vertexOffset, colors=None):
 		if self.primitiveType == POINTS:
 			for i in range(0, len(buffer), vertexOffset):
