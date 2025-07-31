@@ -17,6 +17,9 @@ class Renderer:
         self.models = []
 
         self.activeModelMatrix = None
+        self.activeViewMatrix = None
+        self.activeProjectionMatrix = None
+        self.activeViewportMatrix = None
         self.activeVertexShader = None
         self.activeTexture = None
 
@@ -98,7 +101,6 @@ class Renderer:
                 z = zA * u + zB * v + zC * w
 
                 if texture:
-                    # Corrección de perspectiva
                     w_recip = (u / zA) + (v / zB) + (w / zC)
                     if w_recip == 0:
                         continue
@@ -112,7 +114,11 @@ class Renderer:
 
                 self.glPoint(x, y, color, z)
 
-    def glRender(self):
+    def glRender(self, viewMatrix, projectionMatrix, viewportMatrix):
+        self.activeViewMatrix = viewMatrix
+        self.activeProjectionMatrix = projectionMatrix
+        self.activeViewportMatrix = viewportMatrix
+
         for model in self.models:
             self.activeModelMatrix = model.GetModelMatrix()
             self.activeVertexShader = model.vertexShader
@@ -126,7 +132,13 @@ class Renderer:
                 z = model.vertices[i + 2]
 
                 if self.activeVertexShader:
-                    x, y, z = self.activeVertexShader([x, y, z], modelMatrix=self.activeModelMatrix)
+                    x, y, z = self.activeVertexShader(
+                        [x, y, z],
+                        modelMatrix=self.activeModelMatrix,
+                        viewMatrix=self.activeViewMatrix,
+                        projectionMatrix=self.activeProjectionMatrix,
+                        viewportMatrix=self.activeViewportMatrix
+                    )
 
                 u = model.uvs[i // 3][0] if model.uvs else 0
                 v = model.uvs[i // 3][1] if model.uvs else 0

@@ -1,13 +1,13 @@
 import pygame
 import os
+import math
 from gl import *
 from BMP_Writer import GenerateBMP
 from model import Model
 from shaders import vertexShader
 from BMPTexture import BMPTexture
-import math
+from MathLib import LookAtMatrix, ProjectionMatrix, ViewportMatrix
 
-# Configuración de ventana
 width = 512
 height = 512
 screen = pygame.display.set_mode((width, height), pygame.SCALED)
@@ -16,28 +16,49 @@ clock = pygame.time.Clock()
 
 rend = Renderer(screen)
 
-# Rutas del modelo y textura
 base_path = os.path.dirname(__file__)
 model_path = os.path.join(base_path, "models/13463_Australian_Cattle_Dog_v3.obj")
 texture_path = os.path.join(base_path, "textures/Australian_Cattle_Dog_dif.bmp")
 
-# Cargar textura BMP
 texture = BMPTexture(texture_path)
-
-# Cargar modelo con textura
 triangleModel = Model(model_path, texture=texture)
 triangleModel.vertexShader = vertexShader
-
-# Transformaciones iniciales (ajustar según el modelo)
-triangleModel.translation = [0, -0.5, 0]               # mover un poco abajo
+triangleModel.translation = [0, -0.5, 0]
 triangleModel.scale = [0.05, 0.05, 0.05]
-triangleModel.rotation = [-math.pi / 2, 0, -math.pi]          # rotar -90° en eje X
+triangleModel.rotation = [-math.pi / 2, 0, 0]
 
-# Agregar modelo a la lista
 rend.models.append(triangleModel)
 rend.primitiveType = TRIANGLES
 
-# Loop principal
+
+def get_camera_matrices(shot):
+    eye = [0, 0, 3]
+    target = [0, 0, 0]
+    up = [0, 1, 0]
+
+    if shot == "medium":
+        eye = [0, 0, 3]
+        up = [0, 1, 0]
+    elif shot == "low":
+        eye = [0, -1, 2]
+        up = [0, 1, 0]
+    elif shot == "high":
+        eye = [0, 1, 2]
+        up = [0, 1, 0]
+    elif shot == "dutch":
+        eye = [0, 0, 3]
+        up = [1, 0.3, 0]
+
+    view = LookAtMatrix(eye, target, up)
+    projection = ProjectionMatrix(60, width / height, 0.1, 100)
+    viewport = ViewportMatrix(0, 0, width, height)
+    return view, projection, viewport
+
+
+shot_type = "medium"
+viewMatrix, projectionMatrix, viewportMatrix = get_camera_matrices(shot_type)
+
+
 isRunning = True
 while isRunning:
     deltaTime = clock.tick(60) / 1000.0
@@ -53,7 +74,21 @@ while isRunning:
             elif event.key == pygame.K_3:
                 rend.primitiveType = TRIANGLES
 
-    # Controles de movimiento y rotación
+            elif event.key == pygame.K_z:
+                shot_type = "medium"
+                print("Medium shot")
+            elif event.key == pygame.K_x:
+                shot_type = "low"
+                print("Low angle")
+            elif event.key == pygame.K_c:
+                shot_type = "high"
+                print("High angle")
+            elif event.key == pygame.K_v:
+                shot_type = "dutch"
+                print("Dutch angle")
+
+            viewMatrix, projectionMatrix, viewportMatrix = get_camera_matrices(shot_type)
+
     keys = pygame.key.get_pressed()
     if keys[pygame.K_RIGHT]:
         triangleModel.translation[0] += 10 * deltaTime
@@ -72,11 +107,9 @@ while isRunning:
     if keys[pygame.K_s]:
         triangleModel.scale = [max(0.01, s - deltaTime) for s in triangleModel.scale]
 
-    # Renderizar escena
     rend.glClear()
-    rend.glRender()
+    rend.glRender(viewMatrix, projectionMatrix, viewportMatrix)
     pygame.display.flip()
 
-# Guardar imagen final
 GenerateBMP("output.bmp", width, height, 3, rend.frameBuffer)
 pygame.quit()
