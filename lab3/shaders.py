@@ -6,20 +6,16 @@ def vertexShader(vertex, **kwargs):
     projectionMatrix = kwargs["projectionMatrix"]
     viewportMatrix = kwargs["viewportMatrix"]
 
-    # Paso 1: convertir a coordenadas homogéneas
     vt = np.array([[vertex[0]], [vertex[1]], [vertex[2]], [1]])
 
-    # Paso 2: aplicar Model, View y Projection
     vt = projectionMatrix @ viewMatrix @ modelMatrix @ vt
 
-    # Paso 3: perspectiva (división por W)
     w = vt[3, 0]
     if w == 0:
         w = 1
 
-    vt /= w  # Normalized Device Coordinates (NDC)
+    vt /= w 
 
-    # Paso 4: aplicar viewport (de NDC a pantalla)
     vt = viewportMatrix @ vt
 
     x_screen = int(vt[0, 0])
