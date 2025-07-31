@@ -14,7 +14,7 @@ class BMPTexture:
 
             self.pixels = []
 
-            # Cada fila debe estar alineada a 4 bytes
+            # Cada fila debe estar alineada a múltiplos de 4 bytes
             row_padding = (4 - (self.width * 3) % 4) % 4
 
             for y in range(self.height):
@@ -25,13 +25,14 @@ class BMPTexture:
                     r = int.from_bytes(image.read(1), 'little') / 255
                     row.append([r, g, b])
                 image.read(row_padding)  # Saltar padding
-                self.pixels.insert(0, row)  # Insertar al principio (imagen va de abajo hacia arriba)
+                self.pixels.insert(0, row)  # BMP se guarda de abajo hacia arriba
 
     def get_color(self, u, v):
-        # Repetir textura (wrap) si u o v están fuera de [0, 1]
-        u = u % 1
-        v = v % 1
+        # Asegurar que u, v estén dentro de [0, 1]
+        u = max(0, min(1, u % 1))
+        v = max(0, min(1, v % 1))
 
-        x = min(int(u * self.width), self.width - 1)
-        y = min(int(v * self.height), self.height - 1)
+        x = int(u * (self.width - 1))
+        y = int((1 - v) * (self.height - 1))  # invertir v para corregir orientación
+
         return self.pixels[y][x]

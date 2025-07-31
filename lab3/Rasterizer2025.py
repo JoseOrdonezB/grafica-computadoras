@@ -19,7 +19,7 @@ rend = Renderer(screen)
 # Rutas del modelo y textura
 base_path = os.path.dirname(__file__)
 model_path = os.path.join(base_path, "models/13463_Australian_Cattle_Dog_v3.obj")
-texture_path = os.path.join(base_path, "textures/Australian_Cattle_Dog_bump.bmp")
+texture_path = os.path.join(base_path, "textures/Australian_Cattle_Dog_dif.bmp")
 
 # Cargar textura BMP
 texture = BMPTexture(texture_path)

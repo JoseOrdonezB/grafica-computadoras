@@ -20,6 +20,8 @@ class Renderer:
         self.activeVertexShader = None
         self.activeTexture = None
 
+        self.zBuffer = [[float('inf') for _ in range(self.height)] for _ in range(self.width)]
+
     def glClearColor(self, r, g, b):
         self.clearColor = [min(1, max(0, r)),
                            min(1, max(0, g)),
@@ -33,16 +35,18 @@ class Renderer:
     def glClear(self):
         color = [int(i * 255) for i in self.clearColor]
         self.screen.fill(color)
-        self.frameBuffer = [[color[:] for _ in range(self.height)]
-                            for _ in range(self.width)]
+        self.frameBuffer = [[color[:] for _ in range(self.height)] for _ in range(self.width)]
+        self.zBuffer = [[float('inf') for _ in range(self.height)] for _ in range(self.width)]
 
-    def glPoint(self, x, y, color=None):
+    def glPoint(self, x, y, color=None, z=0):
         x = round(x)
         y = round(y)
         if 0 <= x < self.width and 0 <= y < self.height:
-            color = [int(i * 255) for i in (color or self.currColor)]
-            self.screen.set_at((x, self.height - 1 - y), color)
-            self.frameBuffer[x][y] = color
+            if z < self.zBuffer[x][y]:
+                self.zBuffer[x][y] = z
+                color = [int(i * 255) for i in (color or self.currColor)]
+                self.screen.set_at((x, self.height - 1 - y), color)
+                self.frameBuffer[x][y] = color
 
     def glLine(self, p0, p1, color=None):
         x0, y0 = p0
@@ -70,6 +74,7 @@ class Renderer:
         for x in range(round(x0), round(x1) + 1):
             point = (y, x) if steep else (x, y)
             self.glPoint(*point, color or self.currColor)
+
             offset += m
             if offset >= limit:
                 y += 1 if y0 < y1 else -1
@@ -88,12 +93,24 @@ class Renderer:
                     continue
                 u, v, w = bCoords
 
-                # Interpolación UV
-                tx = A[3] * u + B[3] * v + C[3] * w
-                ty = A[4] * u + B[4] * v + C[4] * w
+                zA, zB, zC = A[2], B[2], C[2]
 
-                color = texture.get_color(tx, ty) if texture else self.currColor
-                self.glPoint(x, y, color)
+                z = zA * u + zB * v + zC * w
+
+                if texture:
+                    # Corrección de perspectiva
+                    w_recip = (u / zA) + (v / zB) + (w / zC)
+                    if w_recip == 0:
+                        continue
+
+                    tx = ((A[3] / zA) * u + (B[3] / zB) * v + (C[3] / zC) * w) / w_recip
+                    ty = ((A[4] / zA) * u + (B[4] / zB) * v + (C[4] / zC) * w) / w_recip
+
+                    color = texture.get_color(tx, ty)
+                else:
+                    color = self.currColor
+
+                self.glPoint(x, y, color, z)
 
     def glRender(self):
         for model in self.models:
@@ -109,8 +126,7 @@ class Renderer:
                 z = model.vertices[i + 2]
 
                 if self.activeVertexShader:
-                    x, y, z = self.activeVertexShader([x, y, z],
-                                                      modelMatrix=self.activeModelMatrix)
+                    x, y, z = self.activeVertexShader([x, y, z], modelMatrix=self.activeModelMatrix)
 
                 u = model.uvs[i // 3][0] if model.uvs else 0
                 v = model.uvs[i // 3][1] if model.uvs else 0
@@ -124,7 +140,8 @@ class Renderer:
             for i in range(0, len(buffer), vertexOffset):
                 x = buffer[i]
                 y = buffer[i + 1]
-                self.glPoint(x, y)
+                z = buffer[i + 2]
+                self.glPoint(x, y, z=z)
 
         elif self.primitiveType == LINES:
             for i in range(0, len(buffer), vertexOffset * 3):
