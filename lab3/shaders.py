@@ -3,14 +3,23 @@ import numpy as np
 def vertexShader(vertex, **kwargs):
     modelMatrix = kwargs["modelMatrix"]
 
+    # Convertir a coordenadas homogéneas
     vt = np.array([[vertex[0]], [vertex[1]], [vertex[2]], [1]])
 
+    # Aplicar transformación de modelo
     vt = modelMatrix @ vt
 
-    x_ndc = vt[0, 0] / vt[3, 0]
-    y_ndc = vt[1, 0] / vt[3, 0]
-    z_ndc = vt[2, 0] / vt[3, 0]
+    # Evitar división por cero
+    w = vt[3, 0]
+    if w == 0:
+        w = 1
 
+    # Normalized Device Coordinates (NDC)
+    x_ndc = vt[0, 0] / w
+    y_ndc = vt[1, 0] / w
+    z_ndc = vt[2, 0] / w
+
+    # Viewport transform (de NDC [-1,1] a coordenadas de pantalla)
     width = 512
     height = 512
 

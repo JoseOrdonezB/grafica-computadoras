@@ -1,195 +1,148 @@
+from barycentric import barycentricCoords
+
 POINTS = 0
 LINES = 1
 TRIANGLES = 2
 
-class Renderer(object):
-	# Inicializa el renderer con la pantalla, colores por defecto, tipo de primitiva y otros atributos
-	def __init__(self, screen):
-		self.screen = screen
-		_, _, self.width, self.height = self.screen.get_rect()
+class Renderer:
+    def __init__(self, screen):
+        self.screen = screen
+        _, _, self.width, self.height = self.screen.get_rect()
 
-		self.glColor(1,1,1)
-		self.glClearColor(0,0,0)
+        self.glColor(1, 1, 1)
+        self.glClearColor(0, 0, 0)
+        self.glClear()
 
-		self.glClear()
+        self.primitiveType = TRIANGLES
+        self.models = []
 
-		self.primitiveType = TRIANGLES
+        self.activeModelMatrix = None
+        self.activeVertexShader = None
+        self.activeTexture = None
 
-		self.models = []
+    def glClearColor(self, r, g, b):
+        self.clearColor = [min(1, max(0, r)),
+                           min(1, max(0, g)),
+                           min(1, max(0, b))]
 
-		self.activeModelMatrix = None
-		self.activeVertexShader = None
+    def glColor(self, r, g, b):
+        self.currColor = [min(1, max(0, r)),
+                          min(1, max(0, g)),
+                          min(1, max(0, b))]
 
-	# Establece el color de fondo de la pantalla (valores entre 0 y 1)
-	def glClearColor(self, r, g, b):
-		r = min(1, max(0,r))
-		g = min(1, max(0,g))
-		b = min(1, max(0,b))
-		self.clearColor = [r,g,b]
+    def glClear(self):
+        color = [int(i * 255) for i in self.clearColor]
+        self.screen.fill(color)
+        self.frameBuffer = [[color[:] for _ in range(self.height)]
+                            for _ in range(self.width)]
 
-	# Establece el color actual para dibujar primitivas (valores entre 0 y 1)
-	def glColor(self, r, g, b):
-		r = min(1, max(0,r))
-		g = min(1, max(0,g))
-		b = min(1, max(0,b))
-		self.currColor = [r,g,b]
+    def glPoint(self, x, y, color=None):
+        x = round(x)
+        y = round(y)
+        if 0 <= x < self.width and 0 <= y < self.height:
+            color = [int(i * 255) for i in (color or self.currColor)]
+            self.screen.set_at((x, self.height - 1 - y), color)
+            self.frameBuffer[x][y] = color
 
-	# Limpia la pantalla con el color de fondo y resetea el framebuffer
-	def glClear(self):
-		color = [int(i * 255) for i in self.clearColor]
-		self.screen.fill(color)
-		self.frameBuffer = [[color for y in range(self.height)]
-							for x in range(self.width)]
+    def glLine(self, p0, p1, color=None):
+        x0, y0 = p0
+        x1, y1 = p1
 
-	# Dibuja un punto en la posición (x, y) usando el color actual o uno específico
-	def glPoint(self, x, y, color = None):
-		x = round(x)
-		y = round(y)
-		if (0 <= x < self.width) and (0 <= y < self.height):
-			color = [int(i * 255) for i in (color or self.currColor) ]
-			self.screen.set_at((x,self.height - 1 - y ), color)
-			self.frameBuffer[x][y] = color
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        steep = dy > dx
 
-	# Dibuja una línea entre dos puntos usando un algoritmo similar a Bresenham
-	def glLine(self, p0, p1, color = None):
-		x0 = p0[0]
-		x1 = p1[0]
-		y0 = p0[1]
-		y1 = p1[1]
+        if steep:
+            x0, y0 = y0, x0
+            x1, y1 = y1, x1
 
-		if x0 == x1 and y0 == y1:
-			self.glPoint(x0, y0)
-			return
+        if x0 > x1:
+            x0, x1 = x1, x0
+            y0, y1 = y1, y0
 
-		dy = abs(y1 - y0)
-		dx = abs(x1 - x0)
-		steep = dy > dx
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        offset = 0
+        limit = 0.5
+        m = dy / dx if dx != 0 else 0
+        y = y0
 
-		if steep:
-			x0, y0 = y0, x0
-			x1, y1 = y1, x1
+        for x in range(round(x0), round(x1) + 1):
+            point = (y, x) if steep else (x, y)
+            self.glPoint(*point, color or self.currColor)
+            offset += m
+            if offset >= limit:
+                y += 1 if y0 < y1 else -1
+                limit += 1
 
-		if x0 > x1:
-			x0, x1 = x1, x0
-			y0, y1 = y1, y0
+    def glTriangleTextured(self, A, B, C, texture):
+        minX = round(min(A[0], B[0], C[0]))
+        maxX = round(max(A[0], B[0], C[0]))
+        minY = round(min(A[1], B[1], C[1]))
+        maxY = round(max(A[1], B[1], C[1]))
 
-		dy = abs(y1 - y0)
-		dx = abs(x1 - x0)
-		offset = 0
-		limit = 0.75
-		m = dy / dx
-		y = y0
+        for x in range(minX, maxX + 1):
+            for y in range(minY, maxY + 1):
+                bCoords = barycentricCoords(A, B, C, (x, y))
+                if bCoords is None:
+                    continue
+                u, v, w = bCoords
 
-		for x in range(round(x0), round(x1) + 1):
-			if steep:
-				self.glPoint(y, x, color or self.currColor)
-			else:
-				self.glPoint(x, y, color or self.currColor)
+                # Interpolación UV
+                tx = A[3] * u + B[3] * v + C[3] * w
+                ty = A[4] * u + B[4] * v + C[4] * w
 
-			offset += m
-			if offset >= limit:
-				y += 1 if y0 < y1 else -1
-				limit += 1
+                color = texture.get_color(tx, ty) if texture else self.currColor
+                self.glPoint(x, y, color)
 
-	# Dibuja un triángulo relleno usando líneas horizontales
-	def glTriangle(self, A, B, C):
-		if A[1] < B[1]: A, B = B, A
-		if A[1] < C[1]: A, C = C, A
-		if B[1] < C[1]: B, C = C, B
+    def glRender(self):
+        for model in self.models:
+            self.activeModelMatrix = model.GetModelMatrix()
+            self.activeVertexShader = model.vertexShader
+            self.activeTexture = getattr(model, 'texture', None)
 
-		# Dibuja un triángulo con base plana
-		def flatBottom(vA, vB, vC):
-			try:
-				mBA = (vB[0] - vA[0]) / (vB[1] - vA[1])
-				mCA = (vC[0] - vA[0]) / (vC[1] - vA[1])
-			except:
-				return
-			if vB[0] > vC[0]:
-				vB, vC = vC, vB
-				mBA, mCA = mCA, mBA
-			x0 = vB[0]
-			x1 = vC[0]
-			for y in range(round(vB[1]), round(vA[1] + 1)):
-				for x in range(round(x0), round(x1 + 1)):
-					self.glPoint(x,y)
-				x0 += mBA
-				x1 += mCA
+            vertexBuffer = []
 
-		# Dibuja un triángulo con vértice superior plano
-		def flatTop(vA, vB, vC):
-			try:
-				mCA = (vC[0] - vA[0]) / (vC[1] - vA[1])
-				mCB = (vC[0] - vB[0]) / (vC[1] - vB[1])
-			except:
-				return
-			if vA[0] > vB[0]:
-				vA, vB = vB, vA
-				mCA, mCB = mCB, mCA
-			x0 = vA[0]
-			x1 = vB[0]
-			for y in range(round(vA[1]), round(vC[1] - 1), -1):
-				for x in range(round(x0), round(x1 + 1)):
-					self.glPoint(x,y)
-				x0 -= mCA
-				x1 -= mCB
+            for i in range(0, len(model.vertices), 3):
+                x = model.vertices[i]
+                y = model.vertices[i + 1]
+                z = model.vertices[i + 2]
 
-		# Dibuja el triángulo completo en dos mitades
-		if B[1] == C[1]:
-			flatBottom(A,B,C)
-		elif A[1] == B[1]:
-			flatTop(A,B,C)
-		else:
-			D = [ A[0] + ((B[1] - A[1]) / (C[1] - A[1])) * (C[0] - A[0]), B[1] ]
-			flatBottom(A, B, D)
-			flatTop(B, D, C)
+                if self.activeVertexShader:
+                    x, y, z = self.activeVertexShader([x, y, z],
+                                                      modelMatrix=self.activeModelMatrix)
 
-	# Renderiza todos los modelos de la escena transformando sus vértices y dibujándolos
-	def glRender(self):
-		for model in self.models:
-			self.activeModelMatrix = model.GetModelMatrix()
-			self.activeVertexShader = model.vertexShader
+                u = model.uvs[i // 3][0] if model.uvs else 0
+                v = model.uvs[i // 3][1] if model.uvs else 0
 
-			vertexBuffer = []
-			for i in range(0, len(model.vertices), 3):
-				x = model.vertices[i]
-				y = model.vertices[i + 1]
-				z = model.vertices[i + 2]
+                vertexBuffer.extend([x, y, z, u, v])
 
-				if self.activeVertexShader:
-					x, y, z = self.activeVertexShader([x,y,z],
-													  modelMatrix = self.activeModelMatrix)
+            self.glDrawPrimitives(vertexBuffer, 5, model.colors)
 
-				vertexBuffer.append(x)
-				vertexBuffer.append(y)
-				vertexBuffer.append(z)
+    def glDrawPrimitives(self, buffer, vertexOffset, colors=None):
+        if self.primitiveType == POINTS:
+            for i in range(0, len(buffer), vertexOffset):
+                x = buffer[i]
+                y = buffer[i + 1]
+                self.glPoint(x, y)
 
-			self.glDrawPrimitives(vertexBuffer, 3, model.colors)
+        elif self.primitiveType == LINES:
+            for i in range(0, len(buffer), vertexOffset * 3):
+                for j in range(3):
+                    x0 = buffer[i + vertexOffset * j]
+                    y0 = buffer[i + vertexOffset * j + 1]
+                    x1 = buffer[i + vertexOffset * ((j + 1) % 3)]
+                    y1 = buffer[i + vertexOffset * ((j + 1) % 3) + 1]
+                    self.glLine((x0, y0), (x1, y1))
 
-	# Dibuja las primitivas según el tipo actual: puntos, líneas o triángulos
-	def glDrawPrimitives(self, buffer, vertexOffset, colors=None):
-		if self.primitiveType == POINTS:
-			for i in range(0, len(buffer), vertexOffset):
-				x = buffer[i]
-				y = buffer[i + 1]
-				self.glPoint(x,y)
+        elif self.primitiveType == TRIANGLES:
+            for i in range(0, len(buffer), vertexOffset * 3):
+                A = buffer[i     : i + vertexOffset]
+                B = buffer[i + 5 : i + vertexOffset * 2]
+                C = buffer[i +10 : i + vertexOffset * 3]
 
-		elif self.primitiveType == LINES:
-			for i in range(0, len(buffer), vertexOffset * 3):
-				for j in range(3):
-					x0 = buffer[i + vertexOffset * j + 0]
-					y0 = buffer[i + vertexOffset * j + 1]
-					x1 = buffer[i + vertexOffset * ((j + 1) % 3) + 0]
-					y1 = buffer[i + vertexOffset * ((j + 1) % 3) + 1]
-					self.glLine((x0,y0), (x1,y1))
+                if colors:
+                    color_index = i // (vertexOffset * 3)
+                    self.glColor(*colors[color_index])
 
-		elif self.primitiveType == TRIANGLES:
-			for i in range(0, len(buffer), vertexOffset * 3):
-				A = [ buffer[i + j + vertexOffset * 0] for j in range(vertexOffset) ]
-				B = [ buffer[i + j + vertexOffset * 1] for j in range(vertexOffset) ]
-				C = [ buffer[i + j + vertexOffset * 2] for j in range(vertexOffset) ]
-
-				if colors:
-					color_index = i // (vertexOffset * 3)
-					self.glColor(*colors[color_index])
-
-				self.glTriangle(A,B,C)
+                self.glTriangleTextured(A, B, C, self.activeTexture)
