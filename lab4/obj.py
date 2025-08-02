@@ -1,6 +1,7 @@
 def load_obj(filename):
     vertices = []
     texcoords = []
+    normals = []
     faces = []
 
     with open(filename, "r") as file:
@@ -21,7 +22,13 @@ def load_obj(filename):
                 if len(parts) >= 3:
                     u = float(parts[1])
                     v = float(parts[2])
-                    texcoords.append([u, v])  # ignoramos w si existe
+                    texcoords.append([u, v])
+
+            elif line.startswith("vn "):
+                parts = line.split()
+                if len(parts) >= 4:
+                    nx, ny, nz = map(float, parts[1:4])
+                    normals.append([nx, ny, nz])
 
             elif line.startswith("f "):
                 parts = line.split()[1:]
@@ -30,10 +37,10 @@ def load_obj(filename):
                     values = part.split("/")
                     v_idx = int(values[0]) - 1
                     vt_idx = int(values[1]) - 1 if len(values) > 1 and values[1] else 0
-                    face.append((v_idx, vt_idx))
+                    vn_idx = int(values[2]) - 1 if len(values) > 2 and values[2] else 0
+                    face.append((v_idx, vt_idx, vn_idx))
 
-                # triangulación tipo fan si la cara tiene más de 3 vértices
                 for i in range(1, len(face) - 1):
                     faces.append([face[0], face[i], face[i + 1]])
 
-    return vertices, texcoords, faces
+    return vertices, texcoords, normals, faces

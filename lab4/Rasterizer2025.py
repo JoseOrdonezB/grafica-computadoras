@@ -4,9 +4,11 @@ import math
 from gl import *
 from BMP_Writer import GenerateBMP
 from model import Model
-from shaders import vertexShader
+from shaders import vertexShader, hologram_shader, crt_shader 
 from BMPTexture import BMPTexture
 from MathLib import LookAtMatrix, ProjectionMatrix, ViewportMatrix
+
+# ------------------ Configuración inicial ------------------
 
 width = 512
 height = 512
@@ -16,20 +18,28 @@ clock = pygame.time.Clock()
 
 rend = Renderer(screen)
 
+# ------------------ Carga de modelo y textura ------------------
+
 base_path = os.path.dirname(__file__)
-model_path = os.path.join(base_path, "models/13463_Australian_Cattle_Dog_v3.obj")
-texture_path = os.path.join(base_path, "textures/Australian_Cattle_Dog_dif.bmp")
+model_path = os.path.join(base_path, "models/mimikyu.obj")
+texture_path = os.path.join(base_path, "textures/Mimigma.bmp")
 
 texture = BMPTexture(texture_path)
-triangleModel = Model(model_path, texture=texture)
+triangleModel = Model(model_path, texture=texture)  
+
+# Asignar shaders
 triangleModel.vertexShader = vertexShader
+triangleModel.fragmentShader = crt_shader
+
+# Transformaciones iniciales
 triangleModel.translation = [0, -0.5, 0]
-triangleModel.scale = [0.05, 0.05, 0.05]
-triangleModel.rotation = [-math.pi / 2, 0, 0]
+triangleModel.scale = [1, 1, 1]
+triangleModel.rotation = [0, -math.pi / 1.5, 0]
 
 rend.models.append(triangleModel)
 rend.primitiveType = TRIANGLES
 
+# ------------------ Cámaras ------------------
 
 def get_camera_matrices(shot):
     eye = [0, 0, 3]
@@ -54,14 +64,17 @@ def get_camera_matrices(shot):
     viewport = ViewportMatrix(0, 0, width, height)
     return view, projection, viewport
 
-
 shot_type = "medium"
 viewMatrix, projectionMatrix, viewportMatrix = get_camera_matrices(shot_type)
 
+# ------------------ Bucle principal ------------------
 
 isRunning = True
+totalTime = 0 
+
 while isRunning:
     deltaTime = clock.tick(60) / 1000.0
+    totalTime += deltaTime 
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -89,6 +102,8 @@ while isRunning:
 
             viewMatrix, projectionMatrix, viewportMatrix = get_camera_matrices(shot_type)
 
+    # ------------------ Transformaciones interactivas ------------------
+
     keys = pygame.key.get_pressed()
     if keys[pygame.K_RIGHT]:
         triangleModel.translation[0] += 10 * deltaTime
@@ -107,9 +122,13 @@ while isRunning:
     if keys[pygame.K_s]:
         triangleModel.scale = [max(0.01, s - deltaTime) for s in triangleModel.scale]
 
+    # ------------------ Render ------------------
+
     rend.glClear()
-    rend.glRender(viewMatrix, projectionMatrix, viewportMatrix)
+    rend.glRender(viewMatrix, projectionMatrix, viewportMatrix, time=totalTime)
     pygame.display.flip()
+
+# ------------------ Salida final ------------------
 
 GenerateBMP("output.bmp", width, height, 3, rend.frameBuffer)
 pygame.quit()

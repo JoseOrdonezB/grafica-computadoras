@@ -21,6 +21,7 @@ class Renderer:
         self.activeProjectionMatrix = None
         self.activeViewportMatrix = None
         self.activeVertexShader = None
+        self.activeFragmentShader = None
         self.activeTexture = None
 
         self.zBuffer = [[float('inf') for _ in range(self.height)] for _ in range(self.width)]
@@ -83,7 +84,7 @@ class Renderer:
                 y += 1 if y0 < y1 else -1
                 limit += 1
 
-    def glTriangleTextured(self, A, B, C, texture):
+    def glTriangleTextured(self, A, B, C, texture, time=0):
         minX = round(min(A[0], B[0], C[0]))
         maxX = round(max(A[0], B[0], C[0]))
         minY = round(min(A[1], B[1], C[1]))
@@ -97,24 +98,42 @@ class Renderer:
                 u, v, w = bCoords
 
                 zA, zB, zC = A[2], B[2], C[2]
-
                 z = zA * u + zB * v + zC * w
 
-                if texture:
-                    w_recip = (u / zA) + (v / zB) + (w / zC)
-                    if w_recip == 0:
-                        continue
+                w_recip = (u / zA) + (v / zB) + (w / zC)
+                if w_recip == 0:
+                    continue
 
-                    tx = ((A[3] / zA) * u + (B[3] / zB) * v + (C[3] / zC) * w) / w_recip
-                    ty = ((A[4] / zA) * u + (B[4] / zB) * v + (C[4] / zC) * w) / w_recip
+                tx = ((A[3] / zA) * u + (B[3] / zB) * v + (C[3] / zC) * w) / w_recip
+                ty = ((A[4] / zA) * u + (B[4] / zB) * v + (C[4] / zC) * w) / w_recip
 
+                # Interpolación de normales
+                nx = A[5] * u + B[5] * v + C[5] * w
+                ny = A[6] * u + B[6] * v + C[6] * w
+                nz = A[7] * u + B[7] * v + C[7] * w
+
+                interpolatedVerts = [
+                    [A[0], A[1], A[2], A[5], A[6], A[7]],
+                    [B[0], B[1], B[2], B[5], B[6], B[7]],
+                    [C[0], C[1], C[2], C[5], C[6], C[7]]
+                ]
+
+                if self.activeFragmentShader:
+                    color = self.activeFragmentShader(
+                        bar=(u, v, w),
+                        verts=interpolatedVerts,
+                        texCoords=(tx, ty),
+                        texture=texture,
+                        time=time
+                    )
+                elif texture:
                     color = texture.get_color(tx, ty)
                 else:
                     color = self.currColor
 
                 self.glPoint(x, y, color, z)
 
-    def glRender(self, viewMatrix, projectionMatrix, viewportMatrix):
+    def glRender(self, viewMatrix, projectionMatrix, viewportMatrix, time=0):
         self.activeViewMatrix = viewMatrix
         self.activeProjectionMatrix = projectionMatrix
         self.activeViewportMatrix = viewportMatrix
@@ -122,6 +141,7 @@ class Renderer:
         for model in self.models:
             self.activeModelMatrix = model.GetModelMatrix()
             self.activeVertexShader = model.vertexShader
+            self.activeFragmentShader = getattr(model, 'fragmentShader', None)
             self.activeTexture = getattr(model, 'texture', None)
 
             vertexBuffer = []
@@ -143,11 +163,13 @@ class Renderer:
                 u = model.uvs[i // 3][0] if model.uvs else 0
                 v = model.uvs[i // 3][1] if model.uvs else 0
 
-                vertexBuffer.extend([x, y, z, u, v])
+                nx, ny, nz = model.normals[i // 3] if model.normals else [0, 0, 1]
 
-            self.glDrawPrimitives(vertexBuffer, 5, model.colors)
+                vertexBuffer.extend([x, y, z, u, v, nx, ny, nz])
 
-    def glDrawPrimitives(self, buffer, vertexOffset, colors=None):
+            self.glDrawPrimitives(vertexBuffer, 8, model.colors, time)
+
+    def glDrawPrimitives(self, buffer, vertexOffset, colors=None, time=0):
         if self.primitiveType == POINTS:
             for i in range(0, len(buffer), vertexOffset):
                 x = buffer[i]
@@ -166,12 +188,12 @@ class Renderer:
 
         elif self.primitiveType == TRIANGLES:
             for i in range(0, len(buffer), vertexOffset * 3):
-                A = buffer[i     : i + vertexOffset]
-                B = buffer[i + 5 : i + vertexOffset * 2]
-                C = buffer[i +10 : i + vertexOffset * 3]
+                A = buffer[i                     : i + vertexOffset]
+                B = buffer[i + vertexOffset      : i + vertexOffset * 2]
+                C = buffer[i + vertexOffset * 2  : i + vertexOffset * 3]
 
                 if colors:
                     color_index = i // (vertexOffset * 3)
                     self.glColor(*colors[color_index])
 
-                self.glTriangleTextured(A, B, C, self.activeTexture)
+                self.glTriangleTextured(A, B, C, self.activeTexture, time)
