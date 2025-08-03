@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import random
 
 def vertexShader(vertex, **kwargs):
     modelMatrix = kwargs["modelMatrix"]
@@ -69,7 +70,7 @@ def hologram_shader(bar, verts, texCoords, texture=None, time=0):
     return final_color
 
 # Shader 2: Tv antigua
-def crt_shader(bar, verts, texCoords, texture=None, time=0):
+def old_tv_shader(bar, verts, texCoords, texture=None, time=0):
     import math
 
     u, v = texCoords
@@ -93,3 +94,69 @@ def crt_shader(bar, verts, texCoords, texture=None, time=0):
 
     final_color = [c * scanline * flicker for c in desaturated]
     return final_color
+
+# Shader 3: Pa dentro y Pa fuera
+def wave_shader(vertex, **kwargs):
+    time = kwargs.get("time", 0)
+    modelMatrix = kwargs["modelMatrix"]
+    viewMatrix = kwargs["viewMatrix"]
+    projectionMatrix = kwargs["projectionMatrix"]
+    viewportMatrix = kwargs["viewportMatrix"]
+
+    vt = np.array([[vertex[0]], [vertex[1]], [vertex[2]], [1]], dtype=np.float32)
+
+    vt_model = modelMatrix @ vt
+
+    pos = np.asarray(vt_model[:3]).flatten()
+
+    center = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+    direction = pos - center
+    distance = np.linalg.norm(direction)
+
+    if distance != 0:
+        direction = direction / distance
+        warp_strength = 0.6
+        wave = math.sin(distance * 10 - time * 4) * 0.1
+        pos = pos + direction * (warp_strength * wave)
+
+    vt_model_deformed = np.array([[pos[0]], [pos[1]], [pos[2]], [1]], dtype=np.float32)
+
+    vt = projectionMatrix @ viewMatrix @ vt_model_deformed
+
+    w = vt[3, 0]
+    if w == 0:
+        w = 1
+    vt /= w
+
+    vt = viewportMatrix @ vt
+
+    x_screen = int(vt[0, 0])
+    y_screen = int(vt[1, 0])
+    z_ndc = vt[2, 0]
+
+    return x_screen, y_screen, z_ndc
+
+# Shader 4: Pulsos
+def pulsating_vertex_shader(vertex, modelMatrix, viewMatrix, projectionMatrix, viewportMatrix, time=0):
+    x, y, z = vertex
+
+    r = np.sqrt(x**2 + y**2 + z**2)
+
+    pulse = 1 + 0.2 * np.sin(r * 10 - time * 6)
+
+    x *= pulse
+    y *= pulse
+    z *= pulse
+
+    vt = np.array([[x], [y], [z], [1]])
+
+    vt = modelMatrix @ vt
+    vt = viewMatrix @ vt
+    vt = projectionMatrix @ vt
+
+    w = vt[3, 0] if vt[3, 0] != 0 else 1
+    vt /= w
+
+    vt = viewportMatrix @ vt
+
+    return vt[0, 0], vt[1, 0], vt[2, 0]

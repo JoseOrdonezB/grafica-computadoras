@@ -13,7 +13,6 @@ class Camera:
         self.screen_width = screen_width
         self.screen_height = screen_height
 
-        # Generar matrices al instanciar
         self.viewMatrix = LookAtMatrix(eye, target, up)
         self.projectionMatrix = ProjectionMatrix(fov, aspect, near, far)
         self.viewportMatrix = ViewportMatrix(0, 0, screen_width, screen_height)

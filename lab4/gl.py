@@ -107,7 +107,6 @@ class Renderer:
                 tx = ((A[3] / zA) * u + (B[3] / zB) * v + (C[3] / zC) * w) / w_recip
                 ty = ((A[4] / zA) * u + (B[4] / zB) * v + (C[4] / zC) * w) / w_recip
 
-                # Interpolación de normales
                 nx = A[5] * u + B[5] * v + C[5] * w
                 ny = A[6] * u + B[6] * v + C[6] * w
                 nz = A[7] * u + B[7] * v + C[7] * w
@@ -157,7 +156,8 @@ class Renderer:
                         modelMatrix=self.activeModelMatrix,
                         viewMatrix=self.activeViewMatrix,
                         projectionMatrix=self.activeProjectionMatrix,
-                        viewportMatrix=self.activeViewportMatrix
+                        viewportMatrix=self.activeViewportMatrix,
+                        time=time
                     )
 
                 u = model.uvs[i // 3][0] if model.uvs else 0
