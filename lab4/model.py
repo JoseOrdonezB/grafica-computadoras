@@ -5,6 +5,8 @@ class Model:
     def __init__(self, filename, texture=None):
         self.vertices = []
         self.colors = []
+        self.uvs = []
+        self.normals = []
         self.texture = texture
 
         raw_vertices, texcoords, raw_normals, faces = load_obj(filename)
