@@ -21,49 +21,50 @@ rend = Renderer(screen)
 # ------------------ Carga de modelo y textura ------------------
 
 base_path = os.path.dirname(__file__)
-model_path = os.path.join(base_path, "models/mimikyu.obj")
-texture_path = os.path.join(base_path, "textures/Mimigma.bmp")
 
-texture = BMPTexture(texture_path)
+# Mimikiy model and texture paths
+mimikyu_model_path = os.path.join(base_path, "models/mimikyu.obj")
+mimikyu_texture_path = os.path.join(base_path, "textures/Mimigma.bmp")
+mimikyu_texture = BMPTexture(mimikyu_texture_path)
+
+# Poliwhirl model and texture paths
+poliwhirl_mode_path = os.path.join(base_path, 'models/poliwhirl.obj')
+poliwhirl_texture_path = os.path.join(base_path, 'textures/poliwhirl.bmp')
+poliwhirl_texture = BMPTexture(poliwhirl_texture_path)
 
 # Asignar modelo y textura a múltiples instanacias
-mimikyu0 = Model(model_path, texture=texture)
-mimikyu1 = Model(model_path, texture=texture)
-mimikyu2 = Model(model_path, texture=texture)
-mimikyu3 = Model(model_path, texture=texture)  
+mimikyu = Model(mimikyu_model_path, texture=mimikyu_texture)
+poliwhirl = Model(poliwhirl_mode_path, texture=poliwhirl_texture)
+
+
 
 # Asignar shaders
-mimikyu0.vertexShader = pulsating_vertex_shader
-mimikyu0.fragmentShader = None
-mimikyu1.vertexShader = vertexShader
-mimikyu1.fragmentShader = hologram_shader
-mimikyu2.vertexShader = vertexShader
-mimikyu2.fragmentShader = old_tv_shader
-mimikyu3.vertexShader = wave_shader
-mimikyu3.fragmentShader = None
+mimikyu.vertexShader = vertexShader
+mimikyu.fragmentShader = None
+poliwhirl.vertexShader = vertexShader
+poliwhirl.fragmentShader = None
 
 # Transformaciones iniciales en fila horizontal
-mimikyu0.translation = [-3, -0.5, 0]
-mimikyu0.scale = [1, 1, 1]
-mimikyu0.rotation = [0, -math.pi / 1.5, 0]
+mimikyu.translation = [-3, -0.5, 0]
+mimikyu.scale = [1, 1, 1]
+mimikyu.rotation = [0, -math.pi / 1.5, 0]
 
-mimikyu1.translation = [-1, -0.5, 0]
-mimikyu1.scale = [1, 1, 1]
-mimikyu1.rotation = [0, -math.pi / 1.5, 0]
+poliwhirl.translation = [-1, -0.5, 0]
+poliwhirl.scale = [0.5, 0.5, 0.5]
+poliwhirl.rotation = [-math.pi/2, 0, math.pi]
 
-mimikyu2.translation = [1, -0.5, 0]
-mimikyu2.scale = [1, 1, 1]
-mimikyu2.rotation = [0, -math.pi / 1.5, 0]
+# mimikyu2.translation = [1, -0.5, 0]
+# mimikyu2.scale = [1, 1, 1]
+# mimikyu2.rotation = [0, -math.pi / 1.5, 0]
 
-mimikyu3.translation = [3, -0.5, 0]
-mimikyu3.scale = [1, 1, 1]
-mimikyu3.rotation = [0, -math.pi / 1.5, 0]
+# mimikyu3.translation = [3, -0.5, 0]
+# mimikyu3.scale = [1, 1, 1]
+# mimikyu3.rotation = [0, -math.pi / 1.5, 0]
 
 
-rend.models.append(mimikyu0)
-rend.models.append(mimikyu1)
-rend.models.append(mimikyu2)
-rend.models.append(mimikyu3)
+rend.models.append(mimikyu)
+rend.models.append(poliwhirl)
+
 rend.primitiveType = TRIANGLES
 
 # ------------------ Cámaras ------------------
