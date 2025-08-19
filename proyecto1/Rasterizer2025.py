@@ -62,21 +62,21 @@ duck.vertexShader = vertexShader
 duck.fragmentShader = None
 
 # Transformaciones iniciales en fila horizontal
-horse.translation = [-3, -0.5, 0]
-horse.scale = [0.0005, 0.0005, 0.0005]
-horse.rotation = [math.pi/2, math.pi, math.pi]
+horse.translation = [-2, -0.5, 1]
+horse.scale = [0.0003, 0.0003, 0.0003]
+horse.rotation = [math.pi/2, math.pi, 0]
 
-frog.translation = [-1, -0.5, 0]
-frog.scale = [0.07, 0.07, 0.07]
+frog.translation = [0, -0.5, -2]
+frog.scale = [0.2, 0.2, 0.2]
 frog.rotation = [math.pi/2, math.pi, 0]
 
-sealion.translation = [1, -0.5, 0]
-sealion.scale = [0.009, 0.009, 0.009]
-sealion.rotation = [math.pi/2, math.pi, math.pi]
+sealion.translation = [0, -0.5, 1]
+sealion.scale = [0.007, 0.007, 0.007]
+sealion.rotation = [math.pi/2, math.pi, 0]
 
-duck.translation = [3, -0.5, 0]
-duck.scale = [0.009, 0.009, 0.009]
-duck.rotation = [math.pi/2, math.pi, math.pi]
+duck.translation = [2, -0.5, 1]
+duck.scale = [0.008, 0.008, 0.008]
+duck.rotation = [math.pi/2, math.pi, 0]
 
 
 rend.models.append(horse)
