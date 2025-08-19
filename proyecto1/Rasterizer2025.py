@@ -22,48 +22,67 @@ rend = Renderer(screen)
 
 base_path = os.path.dirname(__file__)
 
-# Mimikiy model and texture paths
-mimikyu_model_path = os.path.join(base_path, "models/mimikyu.obj")
-mimikyu_texture_path = os.path.join(base_path, "textures/Mimigma.bmp")
-mimikyu_texture = BMPTexture(mimikyu_texture_path)
+# Horse model and texture paths
+horse_model_path = os.path.join(base_path, "models/10026_Horse_v01-it2.obj")
+horse_texture_path = os.path.join(base_path, "textures/Horse_v01.bmp")
+horse_texture = BMPTexture(horse_texture_path)
 
-# Poliwhirl model and texture paths
-poliwhirl_mode_path = os.path.join(base_path, 'models/poliwhirl.obj')
-poliwhirl_texture_path = os.path.join(base_path, 'textures/poliwhirl.bmp')
-poliwhirl_texture = BMPTexture(poliwhirl_texture_path)
+# Frog model and texture paths
+frog_model_path = os.path.join(base_path, 'models/20436_Frog_v1 textured.obj')
+frog_texture_path = os.path.join(base_path, 'textures/20436_Frog_diff.bmp')
+frog_texture = BMPTexture(frog_texture_path)
+
+# Sealion model and texture paths
+sealion_model_path = os.path.join(base_path, 'models/10041_sealion_v1_L3.obj')
+sealion_texture_path = os.path.join(base_path, 'textures/10041_sealion_v1_Diffuse.bmp')
+sealion_texture = BMPTexture(sealion_texture_path)
+
+# Duck model and texture paths
+duck_model_path = os.path.join(base_path, 'models/12248_Bird_v1_L2.obj')
+duck_texture_path = os.path.join(base_path, 'textures/12248_Bird_v1_diff.bmp')
+duck_texture = BMPTexture(duck_texture_path)
 
 # Asignar modelo y textura a múltiples instanacias
-mimikyu = Model(mimikyu_model_path, texture=mimikyu_texture)
-poliwhirl = Model(poliwhirl_mode_path, texture=poliwhirl_texture)
+horse = Model(horse_model_path, texture=horse_texture)
+frog = Model(frog_model_path, texture=frog_texture)
+sealion = Model(sealion_model_path, texture=sealion_texture)
+duck = Model(duck_model_path, texture=duck_texture)
+
 
 
 
 # Asignar shaders
-mimikyu.vertexShader = vertexShader
-mimikyu.fragmentShader = None
-poliwhirl.vertexShader = vertexShader
-poliwhirl.fragmentShader = None
+horse.vertexShader = vertexShader
+horse.fragmentShader = None
+frog.vertexShader = vertexShader
+frog.fragmentShader = None
+sealion.vertexShader = vertexShader
+sealion.fragmentShader = None
+duck.vertexShader = vertexShader
+duck.fragmentShader = None
 
 # Transformaciones iniciales en fila horizontal
-mimikyu.translation = [-3, -0.5, 0]
-mimikyu.scale = [1, 1, 1]
-mimikyu.rotation = [0, -math.pi / 1.5, 0]
+horse.translation = [-3, -0.5, 0]
+horse.scale = [0.0005, 0.0005, 0.0005]
+horse.rotation = [math.pi/2, math.pi, math.pi]
 
-poliwhirl.translation = [-1, -0.5, 0]
-poliwhirl.scale = [0.5, 0.5, 0.5]
-poliwhirl.rotation = [-math.pi/2, 0, math.pi]
+frog.translation = [-1, -0.5, 0]
+frog.scale = [0.07, 0.07, 0.07]
+frog.rotation = [math.pi/2, math.pi, 0]
 
-# mimikyu2.translation = [1, -0.5, 0]
-# mimikyu2.scale = [1, 1, 1]
-# mimikyu2.rotation = [0, -math.pi / 1.5, 0]
+sealion.translation = [1, -0.5, 0]
+sealion.scale = [0.009, 0.009, 0.009]
+sealion.rotation = [math.pi/2, math.pi, math.pi]
 
-# mimikyu3.translation = [3, -0.5, 0]
-# mimikyu3.scale = [1, 1, 1]
-# mimikyu3.rotation = [0, -math.pi / 1.5, 0]
+duck.translation = [3, -0.5, 0]
+duck.scale = [0.009, 0.009, 0.009]
+duck.rotation = [math.pi/2, math.pi, math.pi]
 
 
-rend.models.append(mimikyu)
-rend.models.append(poliwhirl)
+rend.models.append(horse)
+rend.models.append(frog)
+rend.models.append(sealion)
+rend.models.append(duck)
 
 rend.primitiveType = TRIANGLES
 
