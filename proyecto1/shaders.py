@@ -136,72 +136,29 @@ def sway_twist_vertex_shader(vertex, **kwargs):
     return int(vt[0, 0]), int(vt[1, 0]), vt[2, 0]
 
 # --- Duck shaders ---
-def neon_grid_shader(bar, verts, texCoords, texture=None, time=0):
+def hypno_checker_shader(bar, verts, texCoords, texture=None, time=0):
     import math
-
     u, v = texCoords
     base = texture.get_color(u, v) if texture else [1.0, 1.0, 1.0]
+    if max(base) > 1.0:
+        base = [c/255.0 for c in base[:3]]
 
-    mx = max(base) if isinstance(base, (list, tuple)) and len(base) >= 3 else 1.0
-    if mx > 1.0:
-        base = [c / 255.0 for c in base[:3]]
+    freq = 8.0
+    wave = math.sin(time*2.0)
+    check = (int((u*freq + wave) % 2) ^ int((v*freq + wave) % 2))
+
+    if check == 0:
+        tint = [0.9, 0.3, 0.9]
     else:
-        base = [float(base[0]), float(base[1]), float(base[2])]
+        tint = [0.3, 0.9, 0.9]
 
-    nx = verts[0][3]*bar[0] + verts[1][3]*bar[1] + verts[2][3]*bar[2]
-    ny = verts[0][4]*bar[0] + verts[1][4]*bar[1] + verts[2][4]*bar[2]
-    nz = verts[0][5]*bar[0] + verts[1][5]*bar[1] + verts[2][5]*bar[2]
+    out_r = base[0]*0.6 + tint[0]*0.4
+    out_g = base[1]*0.6 + tint[1]*0.4
+    out_b = base[2]*0.6 + tint[2]*0.4
 
-    n_len = math.sqrt(nx*nx + ny*ny + nz*nz) + 1e-8
-    nx, ny, nz = nx/n_len, ny/n_len, nz/n_len
+    return [min(1.0, out_r), min(1.0, out_g), min(1.0, out_b)]
 
-    lx, ly, lz = 0.0, 0.0, -1.0
-    l_len = math.sqrt(lx*lx + ly*ly + lz*lz) + 1e-8
-    lx, ly, lz = lx/l_len, ly/l_len, lz/l_len
-
-    ndotl = -(nx*lx + ny*ly + nz*lz)
-    if ndotl < 0.0: ndotl = 0.0
-    intensity = 0.2 + 0.8*ndotl
-
-    lines = 12.0
-    du = (u*lines) % 1.0
-    dv = (v*lines) % 1.0
-    thickness = 0.07
-
-    glow_u = 1.0 - abs(du - 0.5)/thickness
-    glow_v = 1.0 - abs(dv - 0.5)/thickness
-    if glow_u < 0.0: glow_u = 0.0
-    if glow_v < 0.0: glow_v = 0.0
-    glow = glow_u + glow_v
-    if glow > 1.0: glow = 1.0
-
-    glow *= (0.85 + 0.15*math.sin(time*2.0))
-    if glow < 0.0: glow = 0.0
-    if glow > 1.0: glow = 1.0
-
-    neon = [
-        0.6 + 0.4*math.sin(time + 0.0),
-        0.6 + 0.4*math.sin(time + 2*math.pi/3),
-        0.6 + 0.4*math.sin(time + 4*math.pi/3),
-    ]
-
-    neon = [min(1.0, max(0.0, c)) for c in neon]
-
-    emissive_strength = 0.9
-    out_r = base[0]*intensity + neon[0]*glow*emissive_strength
-    out_g = base[1]*intensity + neon[1]*glow*emissive_strength
-    out_b = base[2]*intensity + neon[2]*glow*emissive_strength
-
-    if out_r < 0.0: out_r = 0.0
-    if out_g < 0.0: out_g = 0.0
-    if out_b < 0.0: out_b = 0.0
-    if out_r > 1.0: out_r = 1.0
-    if out_g > 1.0: out_g = 1.0
-    if out_b > 1.0: out_b = 1.0
-
-    return [out_r, out_g, out_b]
-
-def pulse_bulge_vertex_shader(vertex, **kwargs):
+def wobble_head_vertex_shader(vertex, **kwargs):
     import numpy as np, math
     modelMatrix = kwargs["modelMatrix"]
     viewMatrix = kwargs["viewMatrix"]
@@ -210,20 +167,14 @@ def pulse_bulge_vertex_shader(vertex, **kwargs):
     time = kwargs.get("time", 0)
 
     x, y, z = vertex[:3]
-    pos = np.array([x, y, z], dtype=np.float32)
-    r = float(np.linalg.norm(pos)) + 1e-6
-    dirx, diry, dirz = pos[0]/r, pos[1]/r, pos[2]/r
 
-    amp = 0.06
-    speed = 2.2
-    falloff = max(0.0, 1.0 - r*0.9)
-    disp = amp * math.sin(time*speed) * falloff
+    sway = 0.05 * math.sin(time*2.0 + y*3.0)
+    x2 = x + sway
+    z2 = z + 0.5*sway
 
-    x2 = x + dirx * disp
-    y2 = y + diry * disp
-    z2 = z + dirz * disp
+    pos = np.array([[x2],[y],[z2],[1.0]], dtype=np.float32)
 
-    vt = projectionMatrix @ viewMatrix @ modelMatrix @ np.array([[x2],[y2],[z2],[1.0]], dtype=np.float32)
+    vt = projectionMatrix @ viewMatrix @ modelMatrix @ pos
     w = vt[3,0] if vt[3,0] != 0 else 1.0
     vt /= w
     vt = viewportMatrix @ vt
