@@ -2,6 +2,31 @@ import numpy as np
 import math
 import random
 
+def _clamp01(x: float) -> float:
+    if not math.isfinite(x):
+        return 0.0
+    if x < 0.0: return 0.0
+    if x > 1.0: return 1.0
+    return x
+
+def _rgb(r: float, g: float, b: float):
+    return (_clamp01(r), _clamp01(g), _clamp01(b))
+
+def _norm_tex_rgb(tex_color):
+    if not tex_color or len(tex_color) < 3:
+        return (1.0, 1.0, 1.0)
+    r, g, b = tex_color[:3]
+    if (isinstance(r, (int, float)) and r > 1) or \
+       (isinstance(g, (int, float)) and g > 1) or \
+       (isinstance(b, (int, float)) and b > 1):
+        r, g, b = r/255.0, g/255.0, b/255.0
+    return (_clamp01(float(r)), _clamp01(float(g)), _clamp01(float(b)))
+
+def _sane_uv(u, v):
+    if not math.isfinite(u): u = 0.0
+    if not math.isfinite(v): v = 0.0
+    return max(0.0, min(1.0, u)), max(0.0, min(1.0, v))
+
 def vertexShader(vertex, **kwargs):
     modelMatrix = kwargs["modelMatrix"]
     viewMatrix = kwargs["viewMatrix"]
@@ -27,6 +52,7 @@ def vertexShader(vertex, **kwargs):
 
 # --- Frog shaders ---
 def rainbow_shader(bar, verts, texCoords, texture=None, time=0):
+    # Posiciones pantalla para animación (no afectan a coordenadas reales)
     x = verts[0][0] * bar[0] + verts[1][0] * bar[1] + verts[2][0] * bar[2]
     y = verts[0][1] * bar[0] + verts[1][1] * bar[1] + verts[2][1] * bar[2]
 
@@ -39,23 +65,23 @@ def rainbow_shader(bar, verts, texCoords, texture=None, time=0):
     nx = verts[0][3] * bar[0] + verts[1][3] * bar[1] + verts[2][3] * bar[2]
     ny = verts[0][4] * bar[0] + verts[1][4] * bar[1] + verts[2][4] * bar[2]
     nz = verts[0][5] * bar[0] + verts[1][5] * bar[1] + verts[2][5] * bar[2]
+    nlen = math.sqrt(nx*nx + ny*ny + nz*nz) + 1e-8
+    nx, ny, nz = nx/nlen, ny/nlen, nz/nlen
+    lx, ly, lz = 0.0, 0.0, -1.0
+    llen = math.sqrt(lx*lx + ly*ly + lz*lz) + 1e-8
+    lx, ly, lz = lx/llen, ly/llen, lz/llen
+    ndotl = -(nx*lx + ny*ly + nz*lz)
+    intensity = max(0.2, ndotl)
 
-    normal = np.array([nx, ny, nz], dtype=np.float32)
-    normal /= (np.linalg.norm(normal) + 1e-8)
-
-    light_dir = np.array([0, 0, -1], dtype=np.float32)
-    light_dir /= (np.linalg.norm(light_dir) + 1e-8)
-
-    intensity = max(0.2, float(np.dot(normal, -light_dir)))
-
-    base = texture.get_color(texCoords[0], texCoords[1]) if texture else [1.0, 1.0, 1.0]
+    u, v = _sane_uv(*texCoords)
+    base = _norm_tex_rgb(texture.get_color(u, v)) if texture else (1.0, 1.0, 1.0)
     mix_amount = 0.45
 
     out_r = (base[0] * (1 - mix_amount) + r * mix_amount) * intensity
     out_g = (base[1] * (1 - mix_amount) + g * mix_amount) * intensity
     out_b = (base[2] * (1 - mix_amount) + b * mix_amount) * intensity
 
-    return [out_r, out_g, out_b]
+    return _rgb(out_r, out_g, out_b)
 
 def wave_vertex_shader(vertex, **kwargs):
     modelMatrix = kwargs["modelMatrix"]
@@ -83,8 +109,8 @@ def wave_vertex_shader(vertex, **kwargs):
 
 # --- Horse shaders ---
 def hypno_rings_shader(bar, verts, texCoords, texture=None, time=0):
-    u, v = texCoords
-    base = texture.get_color(u, v) if texture else [1.0, 1.0, 1.0]
+    u, v = _sane_uv(*texCoords)
+    base = _norm_tex_rgb(texture.get_color(u, v)) if texture else (1.0, 1.0, 1.0)
 
     du, dv = u - 0.5, v - 0.5
     r = math.sqrt(du*du + dv*dv) + 1e-8
@@ -99,14 +125,19 @@ def hypno_rings_shader(bar, verts, texCoords, texture=None, time=0):
     nx = verts[0][3]*bar[0] + verts[1][3]*bar[1] + verts[2][3]*bar[2]
     ny = verts[0][4]*bar[0] + verts[1][4]*bar[1] + verts[2][4]*bar[2]
     nz = verts[0][5]*bar[0] + verts[1][5]*bar[1] + verts[2][5]*bar[2]
-    n = np.array([nx, ny, nz], dtype=np.float32)
-    n /= (np.linalg.norm(n) + 1e-8)
-    L = np.array([0, 0, -1], dtype=np.float32); L /= (np.linalg.norm(L) + 1e-8)
-    intensity = max(0.2, float(np.dot(n, -L)))
+    nlen = math.sqrt(nx*nx + ny*ny + nz*nz) + 1e-8
+    nx, ny, nz = nx/nlen, ny/nlen, nz/nlen
+    lx, ly, lz = 0.0, 0.0, -1.0
+    llen = math.sqrt(lx*lx + ly*ly + lz*lz) + 1e-8
+    lx, ly, lz = lx/llen, ly/llen, lz/llen
+    ndotl = -(nx*lx + ny*ly + nz*lz)
+    intensity = max(0.2, ndotl)
 
-    return [base[0] * r_mul * intensity,
-            base[1] * g_mul * intensity,
-            base[2] * b_mul * intensity]
+    out_r = base[0] * r_mul * intensity
+    out_g = base[1] * g_mul * intensity
+    out_b = base[2] * b_mul * intensity
+
+    return _rgb(out_r, out_g, out_b)
 
 def sway_twist_vertex_shader(vertex, **kwargs):
     import numpy as np, math
@@ -137,26 +168,22 @@ def sway_twist_vertex_shader(vertex, **kwargs):
 
 # --- Duck shaders ---
 def hypno_checker_shader(bar, verts, texCoords, texture=None, time=0):
-    import math
-    u, v = texCoords
-    base = texture.get_color(u, v) if texture else [1.0, 1.0, 1.0]
-    if max(base) > 1.0:
-        base = [c/255.0 for c in base[:3]]
+    u, v = _sane_uv(*texCoords)
+    base = _norm_tex_rgb(texture.get_color(u, v)) if texture else (1.0, 1.0, 1.0)
 
     freq = 8.0
     wave = math.sin(time*2.0)
     check = (int((u*freq + wave) % 2) ^ int((v*freq + wave) % 2))
 
-    if check == 0:
-        tint = [0.9, 0.3, 0.9]
-    else:
-        tint = [0.3, 0.9, 0.9]
+    c0 = (0.9, 0.3, 0.9)
+    c1 = (0.3, 0.9, 0.9)
+    tint = c1 if check else c0
 
     out_r = base[0]*0.6 + tint[0]*0.4
     out_g = base[1]*0.6 + tint[1]*0.4
     out_b = base[2]*0.6 + tint[2]*0.4
 
-    return [min(1.0, out_r), min(1.0, out_g), min(1.0, out_b)]
+    return _rgb(out_r, out_g, out_b)
 
 def wobble_head_vertex_shader(vertex, **kwargs):
     import numpy as np, math
@@ -183,22 +210,16 @@ def wobble_head_vertex_shader(vertex, **kwargs):
 
 # --- Sealion shaders ---
 def vortex_spiral_shader(bar, verts, texCoords, texture=None, time=0):
-    import math
-
-    u, v = texCoords
-    base = texture.get_color(u, v) if texture else [1.0, 1.0, 1.0]
-    if max(base) > 1.0:
-        base = [base[0]/255.0, base[1]/255.0, base[2]/255.0]
-    else:
-        base = [float(base[0]), float(base[1]), float(base[2])]
+    u, v = _sane_uv(*texCoords)
+    base = _norm_tex_rgb(texture.get_color(u, v)) if texture else (1.0, 1.0, 1.0)
 
     du, dv = u - 0.5, v - 0.5
     r = math.sqrt(du*du + dv*dv) + 1e-8
     theta = math.atan2(dv, du)
 
-    phase = 6.0*theta - 10.0*r + time*2.0
+    phase  = 6.0*theta - 10.0*r + time*2.0
     spiral = 0.5 + 0.5*math.sin(phase)
-    glow = spiral * spiral
+    glow   = spiral * spiral
 
     r_t = 0.6 + 0.4*math.sin(phase + 0.0)
     g_t = 0.6 + 0.4*math.sin(phase + 2*math.pi/3)
@@ -221,14 +242,7 @@ def vortex_spiral_shader(bar, verts, texCoords, texture=None, time=0):
     out_g = base[1]*intensity + g_t*emissive
     out_b = base[2]*intensity + b_t*emissive
 
-    if out_r < 0.0: out_r = 0.0
-    if out_g < 0.0: out_g = 0.0
-    if out_b < 0.0: out_b = 0.0
-    if out_r > 1.0: out_r = 1.0
-    if out_g > 1.0: out_g = 1.0
-    if out_b > 1.0: out_b = 1.0
-
-    return [out_r, out_g, out_b]
+    return _rgb(out_r, out_g, out_b)
 
 def contraction_wave_vertex_shader(vertex, **kwargs):
     import numpy as np, math

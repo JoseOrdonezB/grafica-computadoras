@@ -1,4 +1,5 @@
 from barycentric import barycentricCoords
+from BMPTexture import BMPTexture
 
 POINTS = 0
 LINES = 1
@@ -24,17 +25,77 @@ class Renderer:
         self.activeFragmentShader = None
         self.activeTexture = None
 
+        self.background = None
+
+        self.vpX = 0
+        self.vpY = 0
+        self.vpWidth = self.width
+        self.vpHeight = self.height
+
         self.zBuffer = [[float('inf') for _ in range(self.height)] for _ in range(self.width)]
+
+    def glLoadBackground(self, filename):
+        self.background = BMPTexture(filename)
 
     def glClearColor(self, r, g, b):
         self.clearColor = [min(1, max(0, r)),
                            min(1, max(0, g)),
                            min(1, max(0, b))]
 
+    def glClearBackground(self):
+    # Limpia color + zbuffer
+        self.glClear()
+
+        if self.background is None:
+            return
+
+        eps = 1e-6
+        w = max(1, self.vpWidth)
+        h = max(1, self.vpHeight)
+
+        for y in range(self.vpY, self.vpY + h):
+        # Centro de píxel y eje V invertido (imagen tiene origen arriba)
+            v = 1.0 - (((y - self.vpY) + 0.5) / h)
+            if v >= 1.0: v = 1.0 - eps
+            if v < 0.0:  v = 0.0
+
+            for x in range(self.vpX, self.vpX + w):
+                u = ((x - self.vpX) + 0.5) / w
+                if u >= 1.0: u = 1.0 - eps
+                if u < 0.0:  u = 0.0
+
+                # Nota: usa el mismo nombre de método que tu clase BMPTexture
+                texColor = self.background.get_color(u, v)   # o get_color(u, v) si ese es el tuyo
+                if not texColor:
+                    continue
+
+                # aceptar 0..1 o 0..255
+                r, g, b = texColor[:3]
+                if r > 1 or g > 1 or b > 1:
+                    R, G, B = int(r), int(g), int(b)
+                else:
+                    R, G, B = int(r*255), int(g*255), int(b*255)
+
+            # clamp
+                R = 0 if R < 0 else 255 if R > 255 else R
+                G = 0 if G < 0 else 255 if G > 255 else G
+                B = 0 if B < 0 else 255 if B > 255 else B
+
+            # Escribir SIN prueba de profundidad
+                self.screen.set_at((x, self.height - 1 - y), (R, G, B))
+                self.frameBuffer[x][y] = [R, G, B]
+
+
     def glColor(self, r, g, b):
         self.currColor = [min(1, max(0, r)),
                           min(1, max(0, g)),
                           min(1, max(0, b))]
+        
+    def glViewport(self, x, y, width, height):
+        self.vpX = int(x)
+        self.vpY = int(y)
+        self.vpWidth = max(1, int(width))
+        self.vpHeight = max(1, int(height))
 
     def glClear(self):
         color = [int(i * 255) for i in self.clearColor]

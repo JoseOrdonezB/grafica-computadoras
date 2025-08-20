@@ -9,6 +9,7 @@ from BMPTexture import BMPTexture
 from MathLib import LookAtMatrix, ProjectionMatrix, ViewportMatrix
 
 # ------------------ Configuración inicial ------------------
+base_path = os.path.dirname(__file__)
 
 width = 1200
 height = 512
@@ -18,9 +19,13 @@ clock = pygame.time.Clock()
 
 rend = Renderer(screen)
 
+rend.glViewport(0, 0, width, height)
+
+background_texture_path = os.path.join(base_path, 'textures/background.bmp')
+rend.glLoadBackground(background_texture_path)
+
 # ------------------ Carga de modelo y textura ------------------
 
-base_path = os.path.dirname(__file__)
 
 # Horse model and texture paths
 horse_model_path = os.path.join(base_path, "models/10026_Horse_v01-it2.obj")
@@ -53,13 +58,13 @@ duck = Model(duck_model_path, texture=duck_texture)
 
 # Asignar shaders
 horse.vertexShader = sway_twist_vertex_shader
-horse.fragmentShader = hypno_rings_shader
+horse.fragmentShader = hypno_checker_shader
 frog.vertexShader = wave_vertex_shader
 frog.fragmentShader = rainbow_shader
 sealion.vertexShader = contraction_wave_vertex_shader
 sealion.fragmentShader = vortex_spiral_shader
 duck.vertexShader = wobble_head_vertex_shader
-duck.fragmentShader = hypno_checker_shader
+duck.fragmentShader = hypno_rings_shader
 
 # Transformaciones iniciales en fila horizontal
 horse.translation = [-2, -0.5, 1]
@@ -171,7 +176,7 @@ while isRunning:
 
     # ------------------ Render ------------------
 
-    rend.glClear()
+    rend.glClearBackground()
     rend.glRender(viewMatrix, projectionMatrix, viewportMatrix, time=totalTime)
     pygame.display.flip()
 
