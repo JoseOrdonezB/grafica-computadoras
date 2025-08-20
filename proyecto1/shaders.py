@@ -25,138 +25,286 @@ def vertexShader(vertex, **kwargs):
 
     return x_screen, y_screen, z_ndc
 
-
-# Shader solo de prueba
-def lambert_shader(bar, verts, texCoords, texture=None):
-    nx = verts[0][3] * bar[0] + verts[1][3] * bar[1] + verts[2][3] * bar[2]
-    ny = verts[0][4] * bar[0] + verts[1][4] * bar[1] + verts[2][4] * bar[2]
-    nz = verts[0][5] * bar[0] + verts[1][5] * bar[1] + verts[2][5] * bar[2]
-
-    normal = np.array([nx, ny, nz])
-    normal = normal / np.linalg.norm(normal)
-
-    light_dir = np.array([0, 0, -1])
-    light_dir = light_dir / np.linalg.norm(light_dir)
-
-    intensity = max(0, np.dot(normal, -light_dir))
-
-    if texture:
-        base_color = texture.get_color(texCoords[0], texCoords[1])
-    else:
-        base_color = [1, 1, 1]
-
-    return [channel * intensity for channel in base_color]
-
-# Shader 1: Holograma
-def hologram_shader(bar, verts, texCoords, texture=None, time=0):
+# --- Frog shaders ---
+def rainbow_shader(bar, verts, texCoords, texture=None, time=0):
+    x = verts[0][0] * bar[0] + verts[1][0] * bar[1] + verts[2][0] * bar[2]
     y = verts[0][1] * bar[0] + verts[1][1] * bar[1] + verts[2][1] * bar[2]
-    z = verts[0][2] * bar[0] + verts[1][2] * bar[1] + verts[2][2] * bar[2]
+
+    t = (x * 0.02 + y * 0.02 + time * 2)
+
+    r = 0.5 + 0.5 * math.sin(t)
+    g = 0.5 + 0.5 * math.sin(t + 2*math.pi/3)
+    b = 0.5 + 0.5 * math.sin(t + 4*math.pi/3)
 
     nx = verts[0][3] * bar[0] + verts[1][3] * bar[1] + verts[2][3] * bar[2]
     ny = verts[0][4] * bar[0] + verts[1][4] * bar[1] + verts[2][4] * bar[2]
     nz = verts[0][5] * bar[0] + verts[1][5] * bar[1] + verts[2][5] * bar[2]
-    normal = np.array([nx, ny, nz])
-    normal = normal / np.linalg.norm(normal)
 
-    light_dir = np.array([0, 0, -1])
-    intensity = max(0.3, np.dot(normal, -light_dir))
+    normal = np.array([nx, ny, nz], dtype=np.float32)
+    normal /= (np.linalg.norm(normal) + 1e-8)
 
-    scan = 0.5 + 0.5 * math.sin(y * 20 + time * 6)
-    flicker = 0.9 + 0.1 * math.sin(time * 12 + z * 50)
+    light_dir = np.array([0, 0, -1], dtype=np.float32)
+    light_dir /= (np.linalg.norm(light_dir) + 1e-8)
 
-    base_color = [0.1, 1.0, 0.8]
+    intensity = max(0.2, float(np.dot(normal, -light_dir)))
 
-    final_color = [c * intensity * scan * flicker for c in base_color]
-    return final_color
+    base = texture.get_color(texCoords[0], texCoords[1]) if texture else [1.0, 1.0, 1.0]
+    mix_amount = 0.45
 
-# Shader 2: Tv antigua
-def old_tv_shader(bar, verts, texCoords, texture=None, time=0):
-    import math
+    out_r = (base[0] * (1 - mix_amount) + r * mix_amount) * intensity
+    out_g = (base[1] * (1 - mix_amount) + g * mix_amount) * intensity
+    out_b = (base[2] * (1 - mix_amount) + b * mix_amount) * intensity
 
-    u, v = texCoords
-    x = u * 512
-    y = v * 512
+    return [out_r, out_g, out_b]
 
-    scanline = 0.9 if int(y) % 2 == 0 else 0.6
-
-    flicker = 0.95 + 0.05 * math.sin(time * 40 + y * 0.1)
-
-    wave = 0.005 * math.sin(time * 5 + y * 0.2)
-    u_distorted = u + wave
-
-    if texture:
-        base_color = texture.get_color(u_distorted, v)
-    else:
-        base_color = [1, 1, 1]
-
-    gray = sum(base_color) / 3
-    desaturated = [gray * 0.6 + c * 0.4 for c in base_color]
-
-    final_color = [c * scanline * flicker for c in desaturated]
-    return final_color
-
-# Shader 3: Pa dentro y Pa fuera
-def wave_shader(vertex, **kwargs):
-    time = kwargs.get("time", 0)
+def wave_vertex_shader(vertex, **kwargs):
     modelMatrix = kwargs["modelMatrix"]
     viewMatrix = kwargs["viewMatrix"]
     projectionMatrix = kwargs["projectionMatrix"]
     viewportMatrix = kwargs["viewportMatrix"]
+    time = kwargs.get("time", 0)
 
-    vt = np.array([[vertex[0]], [vertex[1]], [vertex[2]], [1]], dtype=np.float32)
+    x, y, z = vertex[:3]
 
-    vt_model = modelMatrix @ vt
+    r = math.sqrt(x**2 + y**2 + z**2)
+    offset = 0.05 * math.sin(r*6 - time*3)
 
-    pos = np.asarray(vt_model[:3]).flatten()
+    pos = np.array([[x + x*offset],
+                    [y + y*offset],
+                    [z + z*offset],
+                    [1]], dtype=np.float32)
 
-    center = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-    direction = pos - center
-    distance = np.linalg.norm(direction)
-
-    if distance != 0:
-        direction = direction / distance
-        warp_strength = 0.6
-        wave = math.sin(distance * 10 - time * 4) * 0.1
-        pos = pos + direction * (warp_strength * wave)
-
-    vt_model_deformed = np.array([[pos[0]], [pos[1]], [pos[2]], [1]], dtype=np.float32)
-
-    vt = projectionMatrix @ viewMatrix @ vt_model_deformed
-
-    w = vt[3, 0]
-    if w == 0:
-        w = 1
+    vt = projectionMatrix @ viewMatrix @ modelMatrix @ pos
+    w = vt[3,0] if vt[3,0] != 0 else 1
     vt /= w
-
     vt = viewportMatrix @ vt
 
-    x_screen = int(vt[0, 0])
-    y_screen = int(vt[1, 0])
-    z_ndc = vt[2, 0]
+    return int(vt[0,0]), int(vt[1,0]), vt[2,0]
 
-    return x_screen, y_screen, z_ndc
+# --- Horse shaders ---
+def hypno_rings_shader(bar, verts, texCoords, texture=None, time=0):
+    u, v = texCoords
+    base = texture.get_color(u, v) if texture else [1.0, 1.0, 1.0]
 
-# Shader 4: Pulsos
-def pulsating_vertex_shader(vertex, modelMatrix, viewMatrix, projectionMatrix, viewportMatrix, time=0):
-    x, y, z = vertex
+    du, dv = u - 0.5, v - 0.5
+    r = math.sqrt(du*du + dv*dv) + 1e-8
+    theta = math.atan2(dv, du)
 
-    r = np.sqrt(x**2 + y**2 + z**2)
+    wave = 0.5 + 0.5 * math.sin(r * 18.0 - time * 4.0 + theta * 3.0)
 
-    pulse = 1 + 0.2 * np.sin(r * 10 - time * 6)
+    r_mul = 0.9 + 0.25 * wave
+    g_mul = 0.9 + 0.25 * (1.0 - wave)
+    b_mul = 0.9 + 0.25 * wave
 
-    x *= pulse
-    y *= pulse
-    z *= pulse
+    nx = verts[0][3]*bar[0] + verts[1][3]*bar[1] + verts[2][3]*bar[2]
+    ny = verts[0][4]*bar[0] + verts[1][4]*bar[1] + verts[2][4]*bar[2]
+    nz = verts[0][5]*bar[0] + verts[1][5]*bar[1] + verts[2][5]*bar[2]
+    n = np.array([nx, ny, nz], dtype=np.float32)
+    n /= (np.linalg.norm(n) + 1e-8)
+    L = np.array([0, 0, -1], dtype=np.float32); L /= (np.linalg.norm(L) + 1e-8)
+    intensity = max(0.2, float(np.dot(n, -L)))
 
-    vt = np.array([[x], [y], [z], [1]])
+    return [base[0] * r_mul * intensity,
+            base[1] * g_mul * intensity,
+            base[2] * b_mul * intensity]
 
-    vt = modelMatrix @ vt
-    vt = viewMatrix @ vt
-    vt = projectionMatrix @ vt
+def sway_twist_vertex_shader(vertex, **kwargs):
+    import numpy as np, math
+    modelMatrix = kwargs["modelMatrix"]
+    viewMatrix = kwargs["viewMatrix"]
+    projectionMatrix = kwargs["projectionMatrix"]
+    viewportMatrix = kwargs["viewportMatrix"]
+    time = kwargs.get("time", 0)
 
-    w = vt[3, 0] if vt[3, 0] != 0 else 1
+    x, y, z = vertex[:3]
+
+    angle = 0.15 * math.sin(time * 1.5 + y * 2.0)
+    bob   = 0.02 * math.sin(time * 1.2)
+
+    ca, sa = math.cos(angle), math.sin(angle)
+    x2 = x * ca - z * sa
+    z2 = x * sa + z * ca
+    y2 = y + bob
+
+    pos = np.array([[x2], [y2], [z2], [1.0]], dtype=np.float32)
+
+    vt = projectionMatrix @ viewMatrix @ modelMatrix @ pos
+    w = vt[3, 0] if vt[3, 0] != 0 else 1.0
     vt /= w
-
     vt = viewportMatrix @ vt
 
-    return vt[0, 0], vt[1, 0], vt[2, 0]
+    return int(vt[0, 0]), int(vt[1, 0]), vt[2, 0]
+
+# --- Duck shaders ---
+def neon_grid_shader(bar, verts, texCoords, texture=None, time=0):
+    import math
+
+    u, v = texCoords
+    base = texture.get_color(u, v) if texture else [1.0, 1.0, 1.0]
+
+    mx = max(base) if isinstance(base, (list, tuple)) and len(base) >= 3 else 1.0
+    if mx > 1.0:
+        base = [c / 255.0 for c in base[:3]]
+    else:
+        base = [float(base[0]), float(base[1]), float(base[2])]
+
+    nx = verts[0][3]*bar[0] + verts[1][3]*bar[1] + verts[2][3]*bar[2]
+    ny = verts[0][4]*bar[0] + verts[1][4]*bar[1] + verts[2][4]*bar[2]
+    nz = verts[0][5]*bar[0] + verts[1][5]*bar[1] + verts[2][5]*bar[2]
+
+    n_len = math.sqrt(nx*nx + ny*ny + nz*nz) + 1e-8
+    nx, ny, nz = nx/n_len, ny/n_len, nz/n_len
+
+    lx, ly, lz = 0.0, 0.0, -1.0
+    l_len = math.sqrt(lx*lx + ly*ly + lz*lz) + 1e-8
+    lx, ly, lz = lx/l_len, ly/l_len, lz/l_len
+
+    ndotl = -(nx*lx + ny*ly + nz*lz)
+    if ndotl < 0.0: ndotl = 0.0
+    intensity = 0.2 + 0.8*ndotl
+
+    lines = 12.0
+    du = (u*lines) % 1.0
+    dv = (v*lines) % 1.0
+    thickness = 0.07
+
+    glow_u = 1.0 - abs(du - 0.5)/thickness
+    glow_v = 1.0 - abs(dv - 0.5)/thickness
+    if glow_u < 0.0: glow_u = 0.0
+    if glow_v < 0.0: glow_v = 0.0
+    glow = glow_u + glow_v
+    if glow > 1.0: glow = 1.0
+
+    glow *= (0.85 + 0.15*math.sin(time*2.0))
+    if glow < 0.0: glow = 0.0
+    if glow > 1.0: glow = 1.0
+
+    neon = [
+        0.6 + 0.4*math.sin(time + 0.0),
+        0.6 + 0.4*math.sin(time + 2*math.pi/3),
+        0.6 + 0.4*math.sin(time + 4*math.pi/3),
+    ]
+
+    neon = [min(1.0, max(0.0, c)) for c in neon]
+
+    emissive_strength = 0.9
+    out_r = base[0]*intensity + neon[0]*glow*emissive_strength
+    out_g = base[1]*intensity + neon[1]*glow*emissive_strength
+    out_b = base[2]*intensity + neon[2]*glow*emissive_strength
+
+    if out_r < 0.0: out_r = 0.0
+    if out_g < 0.0: out_g = 0.0
+    if out_b < 0.0: out_b = 0.0
+    if out_r > 1.0: out_r = 1.0
+    if out_g > 1.0: out_g = 1.0
+    if out_b > 1.0: out_b = 1.0
+
+    return [out_r, out_g, out_b]
+
+def pulse_bulge_vertex_shader(vertex, **kwargs):
+    import numpy as np, math
+    modelMatrix = kwargs["modelMatrix"]
+    viewMatrix = kwargs["viewMatrix"]
+    projectionMatrix = kwargs["projectionMatrix"]
+    viewportMatrix = kwargs["viewportMatrix"]
+    time = kwargs.get("time", 0)
+
+    x, y, z = vertex[:3]
+    pos = np.array([x, y, z], dtype=np.float32)
+    r = float(np.linalg.norm(pos)) + 1e-6
+    dirx, diry, dirz = pos[0]/r, pos[1]/r, pos[2]/r
+
+    amp = 0.06
+    speed = 2.2
+    falloff = max(0.0, 1.0 - r*0.9)
+    disp = amp * math.sin(time*speed) * falloff
+
+    x2 = x + dirx * disp
+    y2 = y + diry * disp
+    z2 = z + dirz * disp
+
+    vt = projectionMatrix @ viewMatrix @ modelMatrix @ np.array([[x2],[y2],[z2],[1.0]], dtype=np.float32)
+    w = vt[3,0] if vt[3,0] != 0 else 1.0
+    vt /= w
+    vt = viewportMatrix @ vt
+
+    return int(vt[0,0]), int(vt[1,0]), vt[2,0]
+
+# --- Sealion shaders ---
+def vortex_spiral_shader(bar, verts, texCoords, texture=None, time=0):
+    import math
+
+    u, v = texCoords
+    base = texture.get_color(u, v) if texture else [1.0, 1.0, 1.0]
+    if max(base) > 1.0:
+        base = [base[0]/255.0, base[1]/255.0, base[2]/255.0]
+    else:
+        base = [float(base[0]), float(base[1]), float(base[2])]
+
+    du, dv = u - 0.5, v - 0.5
+    r = math.sqrt(du*du + dv*dv) + 1e-8
+    theta = math.atan2(dv, du)
+
+    phase = 6.0*theta - 10.0*r + time*2.0
+    spiral = 0.5 + 0.5*math.sin(phase)
+    glow = spiral * spiral
+
+    r_t = 0.6 + 0.4*math.sin(phase + 0.0)
+    g_t = 0.6 + 0.4*math.sin(phase + 2*math.pi/3)
+    b_t = 0.6 + 0.4*math.sin(phase + 4*math.pi/3)
+
+    nx = verts[0][3]*bar[0] + verts[1][3]*bar[1] + verts[2][3]*bar[2]
+    ny = verts[0][4]*bar[0] + verts[1][4]*bar[1] + verts[2][4]*bar[2]
+    nz = verts[0][5]*bar[0] + verts[1][5]*bar[1] + verts[2][5]*bar[2]
+    nlen = math.sqrt(nx*nx + ny*ny + nz*nz) + 1e-8
+    nx, ny, nz = nx/nlen, ny/nlen, nz/nlen
+    lx, ly, lz = 0.0, 0.0, -1.0
+    llen = math.sqrt(lx*lx + ly*ly + lz*lz) + 1e-8
+    lx, ly, lz = lx/llen, ly/llen, lz/llen
+    ndotl = -(nx*lx + ny*ly + nz*lz)
+    if ndotl < 0.0: ndotl = 0.0
+    intensity = 0.2 + 0.8*ndotl
+
+    emissive = 0.35 * glow
+    out_r = base[0]*intensity + r_t*emissive
+    out_g = base[1]*intensity + g_t*emissive
+    out_b = base[2]*intensity + b_t*emissive
+
+    if out_r < 0.0: out_r = 0.0
+    if out_g < 0.0: out_g = 0.0
+    if out_b < 0.0: out_b = 0.0
+    if out_r > 1.0: out_r = 1.0
+    if out_g > 1.0: out_g = 1.0
+    if out_b > 1.0: out_b = 1.0
+
+    return [out_r, out_g, out_b]
+
+def contraction_wave_vertex_shader(vertex, **kwargs):
+    import numpy as np, math
+    modelMatrix = kwargs["modelMatrix"]
+    viewMatrix = kwargs["viewMatrix"]
+    projectionMatrix = kwargs["projectionMatrix"]
+    viewportMatrix = kwargs["viewportMatrix"]
+    time = kwargs.get("time", 0)
+
+    x, y, z = vertex[:3]
+    r = math.sqrt(x*x + y*y + z*z) + 1e-6
+    dirx, diry, dirz = x/r, y/r, z/r
+
+    amp   = 0.05
+    speed = 2.0
+    freq  = 6.0
+    fall  = 1.0 / (1.0 + 1.5*r)
+
+    disp = -amp * math.sin(time*speed - r*freq) * fall
+
+    x2 = x + dirx * disp
+    y2 = y + diry * disp
+    z2 = z + dirz * disp
+
+    vt = projectionMatrix @ viewMatrix @ modelMatrix @ np.array([[x2],[y2],[z2],[1.0]], dtype=np.float32)
+    w = vt[3,0] if vt[3,0] != 0 else 1.0
+    vt /= w
+    vt = viewportMatrix @ vt
+
+    return int(vt[0,0]), int(vt[1,0]), vt[2,0]

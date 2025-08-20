@@ -4,7 +4,7 @@ import math
 from gl import *
 from BMP_Writer import GenerateBMP
 from model import Model
-from shaders import vertexShader, hologram_shader, old_tv_shader, wave_shader, pulsating_vertex_shader
+from shaders import vertexShader, rainbow_shader, wave_vertex_shader, hypno_rings_shader, sway_twist_vertex_shader, pulse_bulge_vertex_shader, neon_grid_shader, contraction_wave_vertex_shader, vortex_spiral_shader
 from BMPTexture import BMPTexture
 from MathLib import LookAtMatrix, ProjectionMatrix, ViewportMatrix
 
@@ -52,14 +52,14 @@ duck = Model(duck_model_path, texture=duck_texture)
 
 
 # Asignar shaders
-horse.vertexShader = vertexShader
-horse.fragmentShader = None
-frog.vertexShader = vertexShader
-frog.fragmentShader = None
-sealion.vertexShader = vertexShader
-sealion.fragmentShader = None
-duck.vertexShader = vertexShader
-duck.fragmentShader = None
+horse.vertexShader = sway_twist_vertex_shader
+horse.fragmentShader = hypno_rings_shader
+frog.vertexShader = wave_vertex_shader
+frog.fragmentShader = rainbow_shader
+sealion.vertexShader = contraction_wave_vertex_shader
+sealion.fragmentShader = vortex_spiral_shader
+duck.vertexShader = pulse_bulge_vertex_shader
+duck.fragmentShader = neon_grid_shader
 
 # Transformaciones iniciales en fila horizontal
 horse.translation = [-2, -0.5, 1]
